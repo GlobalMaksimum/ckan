@@ -127,8 +127,11 @@ def dump_to(resource_id, output, fmt, offset, limit, options):
         records_format = 'objects'
 
     def start_writer(fields):
+        resource_name = get_action('resource_show')(None, {'id': resource_id})['name']
+        resource_name = ".".join(resource_name.split('.')[:-1]) if "." in resource_name else resource_name  
+        resource_name = resource_id if resource_name == "" else resource_name
         bom = options.get(u'bom', False)
-        return writer_factory(output, fields, resource_id, bom)
+        return writer_factory(output, fields, resource_name, bom)
 
     def result_page(offs, lim):
         return get_action('datastore_search')(None, {
