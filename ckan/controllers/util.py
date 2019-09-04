@@ -13,7 +13,16 @@ class UtilController(base.BaseController):
 
     def redirect(self):
         ''' redirect to the url parameter. '''
+        
         url = base.request.params.get('url')
+        ''' manual language redirect '''
+        lang = base.request.params.get('lang')
+        if lang:
+            if url[0:3] in ('/tr','/en'):
+                url='/'+lang+url[3]
+            else:
+                url='/'+lang+url
+
         if not url:
             base.abort(400, _('Missing Value') + ': url')
 
@@ -26,6 +35,11 @@ class UtilController(base.BaseController):
         ''' Render all html components out onto a single page.
         This is useful for development/styling of ckan. '''
         return base.render('development/primer.html')
+
+    def markup(self):
+        ''' Render all html elements out onto a single page.
+        This is useful for development/styling of ckan. '''
+        return base.render('development/markup.html')
 
     def i18_js_strings(self, lang):
         ''' This is used to produce the translations for javascript. '''

@@ -1,7 +1,5 @@
 # encoding: utf-8
 
-from nose.tools import assert_equal
-
 import pysolr
 from ckan.common import config
 from ckan import model
@@ -53,6 +51,7 @@ class TestSolrSearch:
 
     def test_1_basic(self):
         results = self.solr.search(q='sweden', fq=self.fq)
-        result_names = sorted([r['name'] for r in results])
-
-        assert_equal([u'se-opengov', u'se-publications'], result_names)
+        assert len(results) == 2
+        result_names = [r['name'] for r in results]
+        assert 'se-publications' in result_names
+        assert 'se-opengov' in result_names

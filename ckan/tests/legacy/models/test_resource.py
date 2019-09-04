@@ -1,8 +1,11 @@
 # encoding: utf-8
 
-from nose.tools import assert_equal
+from sqlalchemy import MetaData, __version__ as sqav
+from nose.tools import assert_equal, raises
 
+from ckan.tests.legacy import *
 import ckan.model as model
+from ckan.lib.create_test_data import CreateTestData
 
 
 class TestResource:

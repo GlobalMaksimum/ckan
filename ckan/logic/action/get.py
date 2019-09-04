@@ -25,6 +25,7 @@ import ckan.model.misc as misc
 import ckan.plugins as plugins
 import ckan.lib.search as search
 import ckan.lib.plugins as lib_plugins
+import ckan.lib.activity_streams as activity_streams
 import ckan.lib.datapreview as datapreview
 import ckan.authz as authz
 
@@ -54,7 +55,7 @@ _text = sqlalchemy.text
 
 def _filter_activity_by_user(activity_list, users=[]):
     '''
-    Return the given ``activity_list`` but with activities from the specified
+    Return the given ``activity_list`` with activities from the specified
     users removed. The users parameters should be a list of ids.
 
     A *new* filtered list is returned, the given ``activity_list`` itself is
@@ -341,15 +342,6 @@ def _group_or_org_list(context, data_dict, is_org=False):
 
     all_fields = asbool(data_dict.get('all_fields', None))
 
-    if all_fields:
-        # all_fields is really computationally expensive, so need a tight limit
-        max_limit = config.get(
-            'ckan.group_and_organization_list_all_fields_max', 25)
-    else:
-        max_limit = config.get('ckan.group_and_organization_list_max', 1000)
-    if limit is None or limit > max_limit:
-        limit = max_limit
-
     # order_by deprecated in ckan 1.8
     # if it is supplied and sort isn't use order_by and raise a warning
     order_by = data_dict.get('order_by', '')
@@ -446,11 +438,9 @@ def group_list(context, data_dict):
         "name asc" string of field name and sort-order. The allowed fields are
         'name', 'package_count' and 'title'
     :type sort: string
-    :param limit: the maximum number of groups returned (optional)
-        Default: ``1000`` when all_fields=false unless set in site's
-        configuration ``ckan.group_and_organization_list_max``
-        Default: ``25`` when all_fields=true unless set in site's
-        configuration ``ckan.group_and_organization_list_all_fields_max``
+    :param limit: if given, the list of groups will be broken into pages of
+        at most ``limit`` groups per page and only one page will be returned
+        at a time (optional)
     :type limit: int
     :param offset: when ``limit`` is given, the offset to start
         returning groups from
@@ -497,11 +487,9 @@ def organization_list(context, data_dict):
         "name asc" string of field name and sort-order. The allowed fields are
         'name', 'package_count' and 'title'
     :type sort: string
-    :param limit: the maximum number of organizations returned (optional)
-        Default: ``1000`` when all_fields=false unless set in site's
-        configuration ``ckan.group_and_organization_list_max``
-        Default: ``25`` when all_fields=true unless set in site's
-        configuration ``ckan.group_and_organization_list_all_fields_max``
+    :param limit: if given, the list of organizations will be broken into pages
+        of at most ``limit`` organizations per page and only one page will be
+        returned at a time (optional)
     :type limit: int
     :param offset: when ``limit`` is given, the offset to start
         returning organizations from
@@ -833,12 +821,9 @@ def tag_list(context, data_dict):
 def user_list(context, data_dict):
     '''Return a list of the site's user accounts.
 
-    :param q: filter the users returned to those whose names contain a string
+    :param q: restrict the users returned to those whose names contain a string
       (optional)
     :type q: string
-    :param email: filter the users returned to those whose email match a
-      string (optional) (you must be a sysadmin to use this filter)
-    :type email: string
     :param order_by: which field to sort the list by (optional, default:
       ``'name'``). Can be any user field or ``edits`` (i.e. number_of_edits).
     :type order_by: string
@@ -857,7 +842,6 @@ def user_list(context, data_dict):
     _check_access('user_list', context, data_dict)
 
     q = data_dict.get('q', '')
-    email = data_dict.get('email')
     order_by = data_dict.get('order_by', 'name')
     all_fields = asbool(data_dict.get('all_fields', True))
 
@@ -885,8 +869,6 @@ def user_list(context, data_dict):
 
     if q:
         query = model.User.search(q, query, user_name=context.get('user'))
-    if email:
-        query = query.filter_by(email=email)
 
     if order_by == 'edits':
         query = query.order_by(_desc(
@@ -1022,9 +1004,9 @@ def package_show(context, data_dict):
                 package_dict_validated = False
             metadata_modified = pkg.metadata_modified.isoformat()
             search_metadata_modified = search_result['metadata_modified']
-            # solr stores less precise datetime,
+            # solr stores less precice datetime,
             # truncate to 22 charactors to get good enough match
-            if metadata_modified[:22] != search_metadata_modified[:22]:
+            if metadata_modified[:22] != search_metadata_modified[:22]  or _relationship_diff(json.loads(search_result['data_dict']), pkg):
                 package_dict = None
 
     if not package_dict:
@@ -1066,6 +1048,13 @@ def package_show(context, data_dict):
         item.after_show(context, package_dict)
 
     return package_dict
+
+def _relationship_diff(search_dict, current_dict):
+    fields=['relationships_as_object', 'relationships_as_subject']
+    for field in fields:
+       if search_dict[field]!=current_dict:
+           return True
+    return False
 
 
 def _add_tracking_summary_to_resource_dict(resource_dict, model):
@@ -1279,7 +1268,7 @@ def group_show(context, data_dict):
          (optional, default: ``True``)
     :type include_extras: bool
     :param include_users: include the group's users
-         (optional, default: ``False``)
+         (optional, default: ``True``)
     :type include_users: bool
     :param include_groups: include the group's sub groups
          (optional, default: ``True``)
@@ -1520,46 +1509,34 @@ def package_autocomplete(context, data_dict):
     :rtype: list of dictionaries
 
     '''
+    model = context['model']
+
     _check_access('package_autocomplete', context, data_dict)
-    user = context.get('user')
 
     limit = data_dict.get('limit', 10)
     q = data_dict['q']
 
-    # enforce permission filter based on user
-    if context.get('ignore_auth') or (user and authz.is_sysadmin(user)):
-        labels = None
-    else:
-        labels = lib_plugins.get_permission_labels().get_user_dataset_labels(
-            context['auth_user_obj']
-        )
+    like_q = u"%s%%" % q
 
-    data_dict = {
-        'q': ' OR '.join([
-            'name_ngram:{0}',
-            'title_ngram:{0}',
-            'name:{0}',
-            'title:{0}',
-        ]).format(search.query.solr_literal(q)),
-        'fl': 'name,title',
-        'rows': limit
-    }
-    query = search.query_for(model.Package)
-
-    results = query.run(data_dict, permission_labels=labels)['results']
+    query = model.Session.query(model.Package)
+    query = query.filter(model.Package.state == 'active')
+    query = query.filter(model.Package.private == False)
+    query = query.filter(_or_(model.Package.name.ilike(like_q),
+                              model.Package.title.ilike(like_q)))
+    query = query.limit(limit)
 
     q_lower = q.lower()
     pkg_list = []
-    for package in results:
-        if q_lower in package['name']:
+    for package in query:
+        if package.name.startswith(q_lower):
             match_field = 'name'
-            match_displayed = package['name']
+            match_displayed = package.name
         else:
             match_field = 'title'
-            match_displayed = '%s (%s)' % (package['title'], package['name'])
+            match_displayed = '%s (%s)' % (package.title, package.name)
         result_dict = {
-            'name': package['name'],
-            'title': package['title'],
+            'name': package.name,
+            'title': package.title,
             'match_field': match_field,
             'match_displayed': match_displayed}
         pkg_list.append(result_dict)
@@ -1719,16 +1696,13 @@ def package_search(context, data_dict):
     :param fq: any filter queries to apply.  Note: ``+site_id:{ckan_site_id}``
         is added to this string prior to the query being executed.
     :type fq: string
-    :param fq_list: additional filter queries to apply.
-    :type fq_list: list of strings
     :param sort: sorting of the search results.  Optional.  Default:
         ``'relevance asc, metadata_modified desc'``.  As per the solr
         documentation, this is a comma-separated string of field names and
         sort-orderings.
     :type sort: string
-    :param rows: the maximum number of matching rows (datasets) to return.
-        (optional, default: ``10``, upper limit: ``1000`` unless set in
-        site's configuration ``ckan.search.rows_max``)
+    :param rows: the number of matching rows to return. There is a hard limit
+        of 1000 datasets per query.
     :type rows: int
     :param start: the offset in the complete result for where the set of
         returned datasets should begin.
@@ -1847,9 +1821,6 @@ def package_search(context, data_dict):
     for key in [key for key in data_dict.keys() if key.startswith('ext_')]:
         data_dict['extras'][key] = data_dict.pop(key)
 
-    # set default search field
-    data_dict['df'] = 'text'
-
     # check if some extension needs to modify the search params
     for item in plugins.PluginImplementations(plugins.IPackageController):
         data_dict = item.before_search(data_dict)
@@ -1902,8 +1873,6 @@ def package_search(context, data_dict):
 
         if result_fl:
             for package in query.results:
-                if isinstance(package, text_type):
-                    package = {result_fl[0]: package}
                 if package.get('extras'):
                     package.update(package['extras'] )
                     package.pop('extras')
@@ -2494,9 +2463,8 @@ def user_activity_list(context, data_dict):
         (optional, default: ``0``)
     :type offset: int
     :param limit: the maximum number of activities to return
-        (optional, default: ``31`` unless set in site's configuration
-        ``ckan.activity_list_limit``, upper limit: ``100`` unless set in
-        site's configuration ``ckan.activity_list_limit_max``)
+        (optional, default: ``31``, the default value is configurable via the
+        ckan.activity_list_limit setting)
     :type limit: int
 
     :rtype: list of dictionaries
@@ -2514,12 +2482,13 @@ def user_activity_list(context, data_dict):
         raise logic.NotFound
 
     offset = data_dict.get('offset', 0)
-    limit = data_dict['limit']  # defaulted, limited & made an int by schema
+    limit = int(
+        data_dict.get('limit', config.get('ckan.activity_list_limit', 31)))
 
-    _activity_objects = model.activity.user_activity_list(
-        user.id, limit=limit, offset=offset)
-    activity_objects = _filter_activity_by_user(
-        _activity_objects, _activity_stream_get_filtered_users())
+    _activity_objects = model.activity.user_activity_list(user.id, limit=limit,
+            offset=offset)
+    activity_objects = _filter_activity_by_user(_activity_objects,
+            _activity_stream_get_filtered_users())
 
     return model_dictize.activity_list_dictize(activity_objects, context)
 
@@ -2536,9 +2505,8 @@ def package_activity_list(context, data_dict):
         (optional, default: ``0``)
     :type offset: int
     :param limit: the maximum number of activities to return
-        (optional, default: ``31`` unless set in site's configuration
-        ``ckan.activity_list_limit``, upper limit: ``100`` unless set in
-        site's configuration ``ckan.activity_list_limit_max``)
+        (optional, default: ``31``, the default value is configurable via the
+        ckan.activity_list_limit setting)
     :type limit: int
 
     :rtype: list of dictionaries
@@ -2556,12 +2524,13 @@ def package_activity_list(context, data_dict):
         raise logic.NotFound
 
     offset = int(data_dict.get('offset', 0))
-    limit = data_dict['limit']  # defaulted, limited & made an int by schema
+    limit = int(
+        data_dict.get('limit', config.get('ckan.activity_list_limit', 31)))
 
-    _activity_objects = model.activity.package_activity_list(
-        package.id, limit=limit, offset=offset)
-    activity_objects = _filter_activity_by_user(
-        _activity_objects, _activity_stream_get_filtered_users())
+    _activity_objects = model.activity.package_activity_list(package.id,
+            limit=limit, offset=offset)
+    activity_objects = _filter_activity_by_user(_activity_objects,
+            _activity_stream_get_filtered_users())
 
     return model_dictize.activity_list_dictize(activity_objects, context)
 
@@ -2578,9 +2547,8 @@ def group_activity_list(context, data_dict):
         (optional, default: ``0``)
     :type offset: int
     :param limit: the maximum number of activities to return
-        (optional, default: ``31`` unless set in site's configuration
-        ``ckan.activity_list_limit``, upper limit: ``100`` unless set in
-        site's configuration ``ckan.activity_list_limit_max``)
+        (optional, default: ``31``, the default value is configurable via the
+        ckan.activity_list_limit setting)
     :type limit: int
 
     :rtype: list of dictionaries
@@ -2593,16 +2561,17 @@ def group_activity_list(context, data_dict):
     model = context['model']
     group_id = data_dict.get('id')
     offset = data_dict.get('offset', 0)
-    limit = data_dict['limit']  # defaulted, limited & made an int by schema
+    limit = int(
+        data_dict.get('limit', config.get('ckan.activity_list_limit', 31)))
 
     # Convert group_id (could be id or name) into id.
     group_show = logic.get_action('group_show')
     group_id = group_show(context, {'id': group_id})['id']
 
-    _activity_objects = model.activity.group_activity_list(
-        group_id, limit=limit, offset=offset)
-    activity_objects = _filter_activity_by_user(
-        _activity_objects, _activity_stream_get_filtered_users())
+    _activity_objects = model.activity.group_activity_list(group_id,
+            limit=limit, offset=offset)
+    activity_objects = _filter_activity_by_user(_activity_objects,
+            _activity_stream_get_filtered_users())
 
     return model_dictize.activity_list_dictize(activity_objects, context)
 
@@ -2613,14 +2582,6 @@ def organization_activity_list(context, data_dict):
 
     :param id: the id or name of the organization
     :type id: string
-    :param offset: where to start getting activity items from
-        (optional, default: ``0``)
-    :type offset: int
-    :param limit: the maximum number of activities to return
-        (optional, default: ``31`` unless set in site's configuration
-        ``ckan.activity_list_limit``, upper limit: ``100`` unless set in
-        site's configuration ``ckan.activity_list_limit_max``)
-    :type limit: int
 
     :rtype: list of dictionaries
 
@@ -2632,21 +2593,22 @@ def organization_activity_list(context, data_dict):
     model = context['model']
     org_id = data_dict.get('id')
     offset = data_dict.get('offset', 0)
-    limit = data_dict['limit']  # defaulted, limited & made an int by schema
+    limit = int(
+        data_dict.get('limit', config.get('ckan.activity_list_limit', 31)))
 
     # Convert org_id (could be id or name) into id.
     org_show = logic.get_action('organization_show')
     org_id = org_show(context, {'id': org_id})['id']
 
-    _activity_objects = model.activity.organization_activity_list(
-        org_id, limit=limit, offset=offset)
-    activity_objects = _filter_activity_by_user(
-        _activity_objects, _activity_stream_get_filtered_users())
+    _activity_objects = model.activity.group_activity_list(org_id,
+            limit=limit, offset=offset)
+    activity_objects = _filter_activity_by_user(_activity_objects,
+            _activity_stream_get_filtered_users())
 
     return model_dictize.activity_list_dictize(activity_objects, context)
 
 
-@logic.validate(logic.schema.default_dashboard_activity_list_schema)
+@logic.validate(logic.schema.default_pagination_schema)
 def recently_changed_packages_activity_list(context, data_dict):
     '''Return the activity stream of all recently added or changed packages.
 
@@ -2654,9 +2616,8 @@ def recently_changed_packages_activity_list(context, data_dict):
         (optional, default: ``0``)
     :type offset: int
     :param limit: the maximum number of activities to return
-        (optional, default: ``31`` unless set in site's configuration
-        ``ckan.activity_list_limit``, upper limit: ``100`` unless set in
-        site's configuration ``ckan.activity_list_limit_max``)
+        (optional, default: ``31``, the default value is configurable via the
+        ckan.activity_list_limit setting)
     :type limit: int
 
     :rtype: list of dictionaries
@@ -2666,12 +2627,13 @@ def recently_changed_packages_activity_list(context, data_dict):
     # authorized to read.
     model = context['model']
     offset = data_dict.get('offset', 0)
-    limit = data_dict['limit']  # defaulted, limited & made an int by schema
+    limit = int(
+        data_dict.get('limit', config.get('ckan.activity_list_limit', 31)))
 
     _activity_objects = model.activity.recently_changed_packages_activity_list(
-        limit=limit, offset=offset)
-    activity_objects = _filter_activity_by_user(
-        _activity_objects, _activity_stream_get_filtered_users())
+            limit=limit, offset=offset)
+    activity_objects = _filter_activity_by_user(_activity_objects,
+            _activity_stream_get_filtered_users())
 
     return model_dictize.activity_list_dictize(activity_objects, context)
 
@@ -2691,6 +2653,154 @@ def activity_detail_list(context, data_dict):
     activity_detail_objects = model.ActivityDetail.by_activity_id(activity_id)
     return model_dictize.activity_detail_list_dictize(
         activity_detail_objects, context)
+
+
+def user_activity_list_html(context, data_dict):
+    '''Return a user's public activity stream as HTML.
+
+    The activity stream is rendered as a snippet of HTML meant to be included
+    in an HTML page, i.e. it doesn't have any HTML header or footer.
+
+    :param id: The id or name of the user.
+    :type id: string
+    :param offset: where to start getting activity items from
+        (optional, default: ``0``)
+    :type offset: int
+    :param limit: the maximum number of activities to return
+        (optional, default: ``31``, the default value is configurable via the
+        ckan.activity_list_limit setting)
+    :type limit: int
+
+    :rtype: string
+
+    '''
+    activity_stream = user_activity_list(context, data_dict)
+    offset = int(data_dict.get('offset', 0))
+    extra_vars = {
+        'controller': 'user',
+        'action': 'activity',
+        'id': data_dict['id'],
+        'offset': offset,
+    }
+    return activity_streams.activity_list_to_html(
+        context, activity_stream, extra_vars)
+
+
+def package_activity_list_html(context, data_dict):
+    '''Return a package's activity stream as HTML.
+
+    The activity stream is rendered as a snippet of HTML meant to be included
+    in an HTML page, i.e. it doesn't have any HTML header or footer.
+
+    :param id: the id or name of the package
+    :type id: string
+    :param offset: where to start getting activity items from
+        (optional, default: ``0``)
+    :type offset: int
+    :param limit: the maximum number of activities to return
+        (optional, default: ``31``, the default value is configurable via the
+        ckan.activity_list_limit setting)
+    :type limit: int
+
+    :rtype: string
+
+    '''
+    activity_stream = package_activity_list(context, data_dict)
+    offset = int(data_dict.get('offset', 0))
+    extra_vars = {
+        'controller': 'package',
+        'action': 'activity',
+        'id': data_dict['id'],
+        'offset': offset,
+    }
+    return activity_streams.activity_list_to_html(
+        context, activity_stream, extra_vars)
+
+
+def group_activity_list_html(context, data_dict):
+    '''Return a group's activity stream as HTML.
+
+    The activity stream is rendered as a snippet of HTML meant to be included
+    in an HTML page, i.e. it doesn't have any HTML header or footer.
+
+    :param id: the id or name of the group
+    :type id: string
+    :param offset: where to start getting activity items from
+        (optional, default: ``0``)
+    :type offset: int
+    :param limit: the maximum number of activities to return
+        (optional, default: ``31``, the default value is configurable via the
+        ckan.activity_list_limit setting)
+    :type limit: int
+
+    :rtype: string
+
+    '''
+    activity_stream = group_activity_list(context, data_dict)
+    offset = int(data_dict.get('offset', 0))
+    extra_vars = {
+        'controller': 'group',
+        'action': 'activity',
+        'id': data_dict['id'],
+        'offset': offset,
+    }
+    return activity_streams.activity_list_to_html(
+        context, activity_stream, extra_vars)
+
+
+def organization_activity_list_html(context, data_dict):
+    '''Return a organization's activity stream as HTML.
+
+    The activity stream is rendered as a snippet of HTML meant to be included
+    in an HTML page, i.e. it doesn't have any HTML header or footer.
+
+    :param id: the id or name of the organization
+    :type id: string
+
+    :rtype: string
+
+    '''
+    activity_stream = organization_activity_list(context, data_dict)
+    offset = int(data_dict.get('offset', 0))
+    extra_vars = {
+        'controller': 'organization',
+        'action': 'activity',
+        'id': data_dict['id'],
+        'offset': offset,
+    }
+
+    return activity_streams.activity_list_to_html(
+        context, activity_stream, extra_vars)
+
+
+def recently_changed_packages_activity_list_html(context, data_dict):
+    '''Return the activity stream of all recently changed packages as HTML.
+
+    The activity stream includes all recently added or changed packages. It is
+    rendered as a snippet of HTML meant to be included in an HTML page, i.e. it
+    doesn't have any HTML header or footer.
+
+    :param offset: where to start getting activity items from
+        (optional, default: ``0``)
+    :type offset: int
+    :param limit: the maximum number of activities to return
+        (optional, default: ``31``, the default value is configurable via the
+        ckan.activity_list_limit setting)
+    :type limit: int
+
+    :rtype: string
+
+    '''
+    activity_stream = recently_changed_packages_activity_list(
+        context, data_dict)
+    offset = int(data_dict.get('offset', 0))
+    extra_vars = {
+        'controller': 'package',
+        'action': 'activity',
+        'offset': offset,
+    }
+    return activity_streams.activity_list_to_html(
+        context, activity_stream, extra_vars)
 
 
 def _follower_count(context, data_dict, default_schema, ModelClass):
@@ -3166,7 +3276,7 @@ def _group_or_org_followee_list(context, data_dict, is_org=False):
     return [model_dictize.group_dictize(group, context) for group in groups]
 
 
-@logic.validate(logic.schema.default_dashboard_activity_list_schema)
+@logic.validate(logic.schema.default_pagination_schema)
 def dashboard_activity_list(context, data_dict):
     '''Return the authorized (via login or API key) user's dashboard activity
        stream.
@@ -3182,9 +3292,8 @@ def dashboard_activity_list(context, data_dict):
         (optional, default: ``0``)
     :type offset: int
     :param limit: the maximum number of activities to return
-        (optional, default: ``31`` unless set in site's configuration
-        ``ckan.activity_list_limit``, upper limit: ``100`` unless set in
-        site's configuration ``ckan.activity_list_limit_max``)
+        (optional, default: ``31``, the default value is configurable via the
+        :ref:`ckan.activity_list_limit` setting)
     :type limit: int
 
     :rtype: list of activity dictionaries
@@ -3195,15 +3304,16 @@ def dashboard_activity_list(context, data_dict):
     model = context['model']
     user_id = model.User.get(context['user']).id
     offset = data_dict.get('offset', 0)
-    limit = data_dict['limit']  # defaulted, limited & made an int by schema
+    limit = int(
+        data_dict.get('limit', config.get('ckan.activity_list_limit', 31)))
 
     # FIXME: Filter out activities whose subject or object the user is not
     # authorized to read.
-    _activity_objects = model.activity.dashboard_activity_list(
-        user_id, limit=limit, offset=offset)
+    _activity_objects = model.activity.dashboard_activity_list(user_id,
+            limit=limit, offset=offset)
 
-    activity_objects = _filter_activity_by_user(
-        _activity_objects, _activity_stream_get_filtered_users())
+    activity_objects = _filter_activity_by_user(_activity_objects,
+            _activity_stream_get_filtered_users())
     activity_dicts = model_dictize.activity_list_dictize(
         activity_objects, context)
 
@@ -3220,6 +3330,39 @@ def dashboard_activity_list(context, data_dict):
                 strptime(activity['timestamp'], fmt) > last_viewed)
 
     return activity_dicts
+
+
+@logic.validate(ckan.logic.schema.default_pagination_schema)
+def dashboard_activity_list_html(context, data_dict):
+    '''Return the authorized (via login or API key) user's dashboard activity
+       stream as HTML.
+
+    The activity stream is rendered as a snippet of HTML meant to be included
+    in an HTML page, i.e. it doesn't have any HTML header or footer.
+
+    :param offset: where to start getting activity items from
+        (optional, default: ``0``)
+    :type offset: int
+    :param limit: the maximum number of activities to return
+        (optional, default: ``31``, the default value is configurable via the
+        ckan.activity_list_limit setting)
+    :type limit: int
+
+    :rtype: string
+
+    '''
+    activity_stream = dashboard_activity_list(context, data_dict)
+    model = context['model']
+    user_id = context['user']
+    offset = data_dict.get('offset', 0)
+    extra_vars = {
+        'controller': 'user',
+        'action': 'dashboard',
+        'offset': offset,
+        'id': user_id
+    }
+    return activity_streams.activity_list_to_html(context, activity_stream,
+                                                  extra_vars)
 
 
 def dashboard_new_activities_count(context, data_dict):

@@ -68,11 +68,7 @@ class ResourceDataController(base.BaseController):
             base.abort(403, _('Not authorized to see this page'))
 
         return base.render('datapusher/resource_data.html',
-                           extra_vars={
-                               'status': datapusher_status,
-                               'pkg_dict': toolkit.c.pkg_dict,
-                               'resource': toolkit.c.resource,
-                           })
+                           extra_vars={'status': datapusher_status})
 
 
 class DatapusherPlugin(p.SingletonPlugin):

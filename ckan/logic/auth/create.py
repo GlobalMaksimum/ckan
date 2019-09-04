@@ -36,7 +36,12 @@ def package_create(context, data_dict=None):
     if org_id and not authz.has_user_permission_for_group_or_org(
             org_id, user, 'create_dataset'):
         return {'success': False, 'msg': _('User %s not authorized to add dataset to this organization') % user}
+
+    if data_dict.get('private') and data_dict.get('private')=='False' and not (authz.has_user_permission_for_group_or_org(org_id, user, 'create_public_dataset') or authz.has_user_permission_for_group_or_org(org_id, user, 'admin')):
+       return {'success': False, 'msg': _('User %s not authorized to add a public dataset to this organization') % user}
+    
     return {'success': True}
+
 
 
 def file_upload(context, data_dict=None):
@@ -149,11 +154,9 @@ def user_create(context, data_dict=None):
             'create users')}
     return {'success': True}
 
-
 def user_invite(context, data_dict):
     data_dict['id'] = data_dict['group_id']
     return group_member_create(context, data_dict)
-
 
 def _check_group_auth(context, data_dict):
     '''Has this user got update permission for all of the given groups?
@@ -207,16 +210,13 @@ def vocabulary_create(context, data_dict):
     # sysadmins only
     return {'success': False}
 
-
 def activity_create(context, data_dict):
     # sysadmins only
     return {'success': False}
 
-
 def tag_create(context, data_dict):
     # sysadmins only
     return {'success': False}
-
 
 def _group_or_org_member_create(context, data_dict):
     user = context['user']
@@ -225,14 +225,11 @@ def _group_or_org_member_create(context, data_dict):
         return {'success': False, 'msg': _('User %s not authorized to add members') % user}
     return {'success': True}
 
-
 def organization_member_create(context, data_dict):
     return _group_or_org_member_create(context, data_dict)
 
-
 def group_member_create(context, data_dict):
     return _group_or_org_member_create(context, data_dict)
-
 
 def member_create(context, data_dict):
     group = logic_auth.get_group_object(context, data_dict)

@@ -75,8 +75,6 @@ def make_pylons_stack(conf, full_stack=True, static_files=True,
                                     cleanup_pylons_response_string)
 
     # Fanstatic
-    fanstatic_enable_rollup = asbool(app_conf.get('fanstatic_enable_rollup',
-                                                  False))
     if asbool(config.get('debug', False)):
         fanstatic_config = {
             'versioning': True,
@@ -84,7 +82,6 @@ def make_pylons_stack(conf, full_stack=True, static_files=True,
             'minified': False,
             'bottom': True,
             'bundle': False,
-            'rollup': fanstatic_enable_rollup,
         }
     else:
         fanstatic_config = {
@@ -93,7 +90,6 @@ def make_pylons_stack(conf, full_stack=True, static_files=True,
             'minified': True,
             'bottom': True,
             'bundle': True,
-            'rollup': fanstatic_enable_rollup,
         }
     root_path = config.get('ckan.root_path', None)
     if root_path:

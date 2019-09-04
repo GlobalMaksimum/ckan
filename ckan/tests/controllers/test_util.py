@@ -1,6 +1,8 @@
 # encoding: utf-8
 
 from nose.tools import assert_equal
+from pylons.test import pylonsapp
+import paste.fixture
 
 from ckan.lib.helpers import url_for as url_for
 

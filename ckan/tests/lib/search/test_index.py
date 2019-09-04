@@ -8,6 +8,7 @@ from nose.tools import assert_equal, assert_in, assert_not_in
 
 from ckan.common import config
 import ckan.lib.search as search
+import ckan.tests.helpers as helpers
 
 
 class TestSearchIndex(object):

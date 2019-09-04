@@ -116,15 +116,13 @@ class Group(vdm.sqlalchemy.RevisionedObjectMixin,
             domain_object.DomainObject):
 
     def __init__(self, name=u'', title=u'', description=u'', image_url=u'',
-                 type=u'group', approval_status=u'approved',
-                 is_organization=False):
+                 type=u'group', approval_status=u'approved'):
         self.name = name
         self.title = title
         self.description = description
         self.image_url = image_url
         self.type = type
         self.approval_status = approval_status
-        self.is_organization = is_organization
 
     @property
     def display_name(self):
@@ -299,7 +297,7 @@ class Group(vdm.sqlalchemy.RevisionedObjectMixin,
             filter(member_table.c.state == 'active')
 
         # orgs do not show private datasets unless the user is a member
-        if self.is_organization and not user_is_org_member:
+        if self.is_organization and not user_is_org_member and not with_private:
             query = query.filter(_package.Package.private == False)
         # groups (not orgs) never show private datasets
         if not self.is_organization:

@@ -38,7 +38,9 @@
             {% endblock %}
             <small>{{ _("Activity from items that I'm following") }}</small>
           </h2>
-          {% snippet 'snippets/activity_stream.html', activity_stream=dashboard_activity_stream %}
+          {% block activity_stream %}
+            {{ dashboard_activity_stream|safe }}
+          {% endblock %}
         </div>
       {% endblock %}
     </div>

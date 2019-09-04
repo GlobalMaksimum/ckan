@@ -13,7 +13,6 @@ from ckan.config.environment import load_environment
 from ckan.config.middleware.flask_app import make_flask_stack
 from ckan.config.middleware.pylons_app import make_pylons_stack
 from ckan.common import config
-
 from ckan.lib.i18n import get_locales_from_config
 
 import logging

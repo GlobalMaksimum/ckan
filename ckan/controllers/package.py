@@ -393,12 +393,13 @@ class PackageController(base.BaseController):
 
         # can the resources be previewed?
         for resource in c.pkg_dict['resources']:
+            # Backwards compatibility with preview interface
+            resource['can_be_previewed'] = self._resource_preview(
+                {'resource': resource, 'package': c.pkg_dict})
+
             resource_views = get_action('resource_view_list')(
                 context, {'id': resource['id']})
             resource['has_views'] = len(resource_views) > 0
-
-            # Backwards compatibility with preview interface
-            resource['can_be_previewed'] = bool(len(resource_views))
 
         package_type = c.pkg_dict['type'] or 'dataset'
         self._setup_template_variables(context, {'id': id},
@@ -666,6 +667,7 @@ class PackageController(base.BaseController):
                 except NotFound:
                     abort(404, _('The dataset {id} could not be found.'
                                  ).format(id=id))
+                '''IDK why this change'''
                 require_resources = asbool(
                     config.get('ckan.dataset.create_on_ui_requires_resources',
                                'True')
@@ -1115,11 +1117,12 @@ class PackageController(base.BaseController):
         c.datastore_api = '%s/api/action' % \
             config.get('ckan.site_url', '').rstrip('/')
 
+        c.resource['can_be_previewed'] = self._resource_preview(
+            {'resource': c.resource, 'package': c.package})
+
         resource_views = get_action('resource_view_list')(
             context, {'id': resource_id})
         c.resource['has_views'] = len(resource_views) > 0
-
-        c.resource['can_be_previewed'] = bool(len(resource_views))
 
         current_resource_view = None
         view_id = request.GET.get('view_id')

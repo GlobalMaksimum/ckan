@@ -110,7 +110,8 @@ def resource_dictize(res, context):
     if resource.get('url_type') == 'upload' and not context.get('for_edit'):
         url = url.rsplit('/')[-1]
         cleaned_name = munge.munge_filename(url)
-        resource['url'] = h.url_for('resource.download',
+        resource['url'] = h.url_for(controller='package',
+                                    action='resource_download',
                                     id=resource['package_id'],
                                     resource_id=res.id,
                                     filename=cleaned_name,
@@ -389,12 +390,11 @@ def group_dictize(group, context,
                     q['include_private'] = True
 
             if not just_the_count:
-                # package_search limits 'rows' anyway, so this is only if you
-                # want even fewer
+                # Is there a packages limit in the context?
                 try:
                     packages_limit = context['limits']['packages']
                 except KeyError:
-                    del q['rows']  # leave it to package_search to limit it
+                    q['rows'] = 1000  # Only the first 1000 datasets are returned
                 else:
                     q['rows'] = packages_limit
 
@@ -765,3 +765,4 @@ def resource_view_list_dictize(resource_views, context):
     for view in resource_views:
         resource_view_dicts.append(resource_view_dictize(view, context))
     return resource_view_dicts
+

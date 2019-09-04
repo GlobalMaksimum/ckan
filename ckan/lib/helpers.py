@@ -69,17 +69,7 @@ LEGACY_ROUTE_NAMES = {
     'home': 'home.index',
     'about': 'home.about',
     'search': 'dataset.search',
-    'dataset_read': 'dataset.read',
-    'dataset_activity': 'dataset.activity',
-    'dataset_groups': 'dataset.groups',
-    'group_index': 'group.index',
-    'group_about': 'group.about',
-    'group_read': 'group.read',
-    'group_activity': 'group.activity',
-    'organizations_index': 'organization.index',
-    'organization_activity': 'organization.activity',
-    'organization_read': 'organization.read',
-    'organization_about': 'organization.about',
+    'organizations_index': 'organization.index'
 }
 
 
@@ -165,12 +155,12 @@ def redirect_to(*args, **kw):
         import ckan.plugins.toolkit as toolkit
 
         # Redirect to /dataset/my_dataset.
-        toolkit.redirect_to('dataset.read',
+        toolkit.redirect_to(controller='package', action='read',
                             id='my_dataset')
 
     Or, using a named route::
 
-        toolkit.redirect_to('dataset.read', id='changed')
+        toolkit.redirect_to('dataset_read', id='changed')
 
     If given a single string as argument, this redirects without url parsing
 
@@ -286,12 +276,12 @@ def url_for(*args, **kw):
 
     URLs built by Pylons use the Routes syntax::
 
-        url_for(controller='my_ctrl', action='my_action', id='my_dataset')
+        url_for(controller='package', action='read', id='my_dataset')
         # Returns '/dataset/my_dataset'
 
     Or, using a named route::
 
-        url_for('dataset.read', id='changed')
+        url_for('dataset_read', id='changed')
         # Returns '/dataset/changed'
 
     Use ``qualified=True`` for a fully qualified URL when targeting a Pylons
@@ -587,24 +577,13 @@ def ckan_version():
 
 @core_helper
 def lang_native_name(lang=None):
-    ''' Return the language name currently used in it's localised form
+    ''' Return the langage name currently used in it's localised form
         either from parameter or current environ setting'''
     lang = lang or lang()
     locale = i18n.get_locales_dict().get(lang)
     if locale:
         return locale.display_name or locale.english_name
     return lang
-
-
-@core_helper
-def is_rtl_language():
-    return lang() in config.get('ckan.i18n.rtl_languages',
-                                'he ar fa_IR').split()
-
-
-@core_helper
-def get_rtl_css():
-    return config.get('ckan.i18n.rtl_css', '/base/css/main-rtl.css')
 
 
 class Message(object):
@@ -731,7 +710,7 @@ def _link_active_pylons(kwargs):
 
 
 def _link_active_flask(kwargs):
-    blueprint, endpoint = p.toolkit.get_endpoint()
+    blueprint, endpoint = request.url_rule.endpoint.split('.')
     return(kwargs.get('controller') == blueprint and
            kwargs.get('action') == endpoint)
 
@@ -785,7 +764,7 @@ def nav_link(text, *args, **kwargs):
 def nav_link_flask(text, *args, **kwargs):
     if len(args) > 1:
         raise Exception('Too many unnamed parameters supplied')
-    blueprint, endpoint = p.toolkit.get_endpoint()
+    blueprint, endpoint = request.url_rule.endpoint.split('.')
     if args:
         kwargs['controller'] = blueprint or None
         kwargs['action'] = endpoint or None
@@ -904,6 +883,13 @@ def build_nav(menu_item, title, **kw):
     return _make_menu_item(menu_item, title, icon=None, **kw)
 
 
+# Legacy route names
+LEGACY_ROUTE_NAMES = {
+    'home': 'home.index',
+    'about': 'home.about',
+}
+
+
 def map_pylons_to_flask_route_name(menu_item):
     '''returns flask routes for old fashioned route names'''
     # Pylons to Flask legacy route names mappings
@@ -978,8 +964,7 @@ def default_group_type():
 
 
 @core_helper
-def get_facet_items_dict(
-        facet, search_facets=None, limit=None, exclude_active=False):
+def get_facet_items_dict(facet, limit=None, exclude_active=False):
     '''Return the list of unselected facet items for the given facet, sorted
     by count.
 
@@ -994,19 +979,15 @@ def get_facet_items_dict(
 
     Arguments:
     facet -- the name of the facet to filter.
-    search_facets -- dict with search facets(c.search_facets in Pylons)
     limit -- the max. number of facet items to return.
     exclude_active -- only return unselected facets.
 
     '''
-    if search_facets is None:
-        search_facets = getattr(c, u'search_facets', None)
-
-    if not search_facets or not search_facets.get(
-            facet, {}).get('items'):
+    if not hasattr(c, u'search_facets') or not c.search_facets.get(
+                                               facet, {}).get(u'items'):
         return []
     facets = []
-    for facet_item in search_facets.get(facet)['items']:
+    for facet_item in c.search_facets.get(facet)['items']:
         if not len(facet_item['name'].strip()):
             continue
         if not (facet, facet_item['name']) in request.params.items():
@@ -1025,7 +1006,7 @@ def get_facet_items_dict(
 
 
 @core_helper
-def has_more_facets(facet, search_facets, limit=None, exclude_active=False):
+def has_more_facets(facet, limit=None, exclude_active=False):
     '''
     Returns True if there are more facet items for the given facet than the
     limit.
@@ -1036,13 +1017,12 @@ def has_more_facets(facet, search_facets, limit=None, exclude_active=False):
 
     Arguments:
     facet -- the name of the facet to filter.
-    search_facets -- dict with search facets(c.search_facets in Pylons)
     limit -- the max. number of facet items.
     exclude_active -- only return unselected facets.
 
     '''
     facets = []
-    for facet_item in search_facets.get(facet)['items']:
+    for facet_item in c.search_facets.get(facet)['items']:
         if not len(facet_item['name'].strip()):
             continue
         if not (facet, facet_item['name']) in request.params.items():
@@ -1075,8 +1055,7 @@ def unselected_facet_items(facet, limit=10):
     limit -- the max. number of facet items to return.
 
     '''
-    return get_facet_items_dict(
-        facet, c.search_facets, limit=limit, exclude_active=True)
+    return get_facet_items_dict(facet, limit=limit, exclude_active=True)
 
 
 @core_helper
@@ -1114,7 +1093,7 @@ def _url_with_params(url, params):
 
 
 def _search_url(params):
-    url = url_for('dataset.search')
+    url = url_for(controller='package', action='search')
     return _url_with_params(url, params)
 
 
@@ -1422,8 +1401,7 @@ def get_display_timezone():
 
 
 @core_helper
-def render_datetime(datetime_, date_format=None, with_hours=False,
-                    with_seconds=False):
+def render_datetime(datetime_, date_format=None, with_hours=False):
     '''Render a datetime object or timestamp string as a localised date or
     in the requested format.
     If timestamp is badly formatted, then a blank string is returned.
@@ -1434,8 +1412,6 @@ def render_datetime(datetime_, date_format=None, with_hours=False,
     :type date_format: string
     :param with_hours: should the `hours:mins` be shown
     :type with_hours: bool
-    :param with_seconds: should the `hours:mins:seconds` be shown
-    :type with_seconds: bool
 
     :rtype: string
     '''
@@ -1466,8 +1442,7 @@ def render_datetime(datetime_, date_format=None, with_hours=False,
         return datetime_.strftime(date_format)
     # the localised date
     return formatters.localised_nice_date(datetime_, show_date=True,
-                                          with_hours=with_hours,
-                                          with_seconds=with_seconds)
+                                          with_hours=with_hours)
 
 
 @core_helper
@@ -1628,7 +1603,7 @@ def dataset_link(package_or_package_dict):
     text = dataset_display_name(package_or_package_dict)
     return tags.link_to(
         text,
-        url_for('dataset.read', id=name)
+        url_for(controller='package', action='read', id=name)
     )
 
 
@@ -1652,7 +1627,8 @@ def resource_display_name(resource_dict):
 @core_helper
 def resource_link(resource_dict, package_id):
     text = resource_display_name(resource_dict)
-    url = url_for('resource.read',
+    url = url_for(controller='package',
+                  action='resource_read',
                   id=package_id,
                   resource_id=resource_dict['id'])
     return tags.link_to(text, url)
@@ -1660,13 +1636,13 @@ def resource_link(resource_dict, package_id):
 
 @core_helper
 def tag_link(tag):
-    url = url_for('dataset.search', tags=tag['name'])
+    url = url_for(controller='tag', action='read', id=tag['name'])
     return tags.link_to(tag.get('title', tag['name']), url)
 
 
 @core_helper
 def group_link(group):
-    url = url_for('group.read', id=group['name'])
+    url = url_for(controller='group', action='read', id=group['name'])
     return tags.link_to(group['title'], url)
 
 
@@ -1808,10 +1784,11 @@ def follow_count(obj_type, obj_id):
 def _create_url_with_params(params=None, controller=None, action=None,
                             extras=None):
     ''' internal function for building urls with parameters. '''
+
     if not controller:
-        controller = getattr(c, 'controller', False) or request.blueprint
+        controller = c.controller
     if not action:
-        action = getattr(c, 'action', False) or p.toolkit.get_endpoint()[1]
+        action = c.action
     if not extras:
         extras = {}
 
@@ -1835,6 +1812,7 @@ def add_url_param(alternative_url=None, controller=None, action=None,
 
     params_nopage = [(k, v) for k, v in request.params.items() if k != 'page']
     params = set(params_nopage)
+
     if new_params:
         params |= set(new_params.items())
     if alternative_url:
@@ -2018,15 +1996,15 @@ def dashboard_activity_stream(user_id, filter_type=None, filter_id=None,
 
     if filter_type:
         action_functions = {
-            'dataset': 'package_activity_list',
-            'user': 'user_activity_list',
-            'group': 'group_activity_list',
-            'organization': 'organization_activity_list',
+            'dataset': 'package_activity_list_html',
+            'user': 'user_activity_list_html',
+            'group': 'group_activity_list_html',
+            'organization': 'organization_activity_list_html',
         }
         action_function = logic.get_action(action_functions.get(filter_type))
         return action_function(context, {'id': filter_id, 'offset': offset})
     else:
-        return logic.get_action('dashboard_activity_list')(
+        return logic.get_action('dashboard_activity_list_html')(
             context, {'offset': offset})
 
 
@@ -2037,7 +2015,7 @@ def recently_changed_packages_activity_stream(limit=None):
     else:
         data_dict = {}
     context = {'model': model, 'session': model.Session, 'user': c.user}
-    return logic.get_action('recently_changed_packages_activity_list')(
+    return logic.get_action('recently_changed_packages_activity_list_html')(
         context, data_dict)
 
 
@@ -2233,7 +2211,7 @@ def resource_preview(resource, package):
     data_dict = {'resource': resource, 'package': package}
 
     if datapreview.get_preview_plugin(data_dict, return_first=True):
-        url = url_for('resource.datapreview',
+        url = url_for(controller='package', action='resource_datapreview',
                       resource_id=resource['id'], id=package['id'],
                       qualified=True)
     else:
@@ -2308,8 +2286,7 @@ def resource_view_get_fields(resource):
 
     data = {
         'resource_id': resource['id'],
-        'limit': 0,
-        'include_total': False,
+        'limit': 0
     }
     result = logic.get_action('datastore_search')({}, data)
 
