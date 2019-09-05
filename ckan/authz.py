@@ -210,7 +210,8 @@ def is_authorized(action, context, data_dict=None):
 # these are the permissions that roles have
 ROLE_PERMISSIONS = OrderedDict([
     ('admin', ['admin']),
-    ('editor', ['read', 'delete_dataset', 'create_dataset', 'update_dataset', 'manage_group']),
+    ('editor', ['read', 'delete_dataset','create_public_dataset', 'create_dataset', 'update_dataset', 'manage_group']),
+    ('elevated_member', ['read','create_dataset','manage_group','update_dataset']),
     ('member', ['read', 'manage_group']),
 ])
 
@@ -222,6 +223,8 @@ def _trans_role_admin():
 def _trans_role_editor():
     return _('Editor')
 
+def _trans_role_elevated_member():
+    return _('Elevated Member')
 
 def _trans_role_member():
     return _('Member')

@@ -26,7 +26,8 @@ this.ckan.module('autocomplete', function (jQuery) {
       source: null,
       interval: 300,
       dropdownClass: '',
-      containerClass: ''
+      containerClass: '',
+      containerless:false
     },
 
     /* Sets up the module, binding methods, creating elements etc. Called
@@ -50,7 +51,8 @@ this.ckan.module('autocomplete', function (jQuery) {
         formatNoMatches: this.formatNoMatches,
         formatInputTooShort: this.formatInputTooShort,
         dropdownCssClass: this.options.dropdownClass,
-        containerCssClass: this.options.containerClass
+        containerCssClass: this.options.containerClass,
+        containerless:this.options.containerless
       };
 
       // Different keys are required depending on whether the select is
@@ -72,7 +74,6 @@ this.ckan.module('autocomplete', function (jQuery) {
       }
 
       var select2 = this.el.select2(settings).data('select2');
-
       if (this.options.tags && select2 && select2.search) {
         // find the "fake" input created by select2 and add the keypress event.
         // This is not part of the plugins API and so may break at any time.

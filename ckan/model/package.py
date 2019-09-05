@@ -51,7 +51,7 @@ package_table = Table('package', meta.metadata,
         Column('creator_user_id', types.UnicodeText),
         Column('metadata_created', types.DateTime, default=datetime.datetime.utcnow),
         Column('metadata_modified', types.DateTime, default=datetime.datetime.utcnow),
-        Column('private', types.Boolean, default=False),
+        Column('private', types.Boolean, default=True),
 )
 
 

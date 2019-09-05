@@ -1006,7 +1006,7 @@ def package_show(context, data_dict):
             search_metadata_modified = search_result['metadata_modified']
             # solr stores less precice datetime,
             # truncate to 22 charactors to get good enough match
-            if metadata_modified[:22] != search_metadata_modified[:22]:
+            if metadata_modified[:22] != search_metadata_modified[:22]  or _relationship_diff(json.loads(search_result['data_dict']), pkg):
                 package_dict = None
 
     if not package_dict:
@@ -1048,6 +1048,13 @@ def package_show(context, data_dict):
         item.after_show(context, package_dict)
 
     return package_dict
+
+def _relationship_diff(search_dict, current_dict):
+    fields=['relationships_as_object', 'relationships_as_subject']
+    for field in fields:
+       if search_dict[field]!=current_dict:
+           return True
+    return False
 
 
 def _add_tracking_summary_to_resource_dict(resource_dict, model):

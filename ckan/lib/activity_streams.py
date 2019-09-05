@@ -7,6 +7,7 @@ from webhelpers.html import literal
 import ckan.lib.helpers as h
 import ckan.lib.base as base
 import ckan.logic as logic
+import ckan.logic.validators as validators
 
 from ckan.common import _, is_flask_request
 
@@ -14,17 +15,17 @@ from ckan.common import _, is_flask_request
 # in activity strings with HTML representations of particular users, datasets,
 # etc.
 
-def get_snippet_actor(activity, detail):
+def get_snippet_actor(activity, detail, context):
     return literal('''<span class="actor">%s</span>'''
         % (h.linked_user(activity['user_id'], 0, 30))
         )
 
-def get_snippet_user(activity, detail):
+def get_snippet_user(activity, detail, context):
     return literal('''<span>%s</span>'''
         % (h.linked_user(activity['object_id'], 0, 20))
         )
 
-def get_snippet_dataset(activity, detail):
+def get_snippet_dataset(activity, detail, context):
     data = activity['data']
     pkg_dict = data.get('package') or data.get('dataset')
     link = h.dataset_link(pkg_dict) if pkg_dict else ''
@@ -32,25 +33,30 @@ def get_snippet_dataset(activity, detail):
         % (link)
         )
 
-def get_snippet_tag(activity, detail):
+def get_snippet_tag(activity, detail, context):
     return h.tag_link(detail['data']['tag'])
 
-def get_snippet_group(activity, detail):
+def get_snippet_group(activity, detail, context):
     link = h.group_link(activity['data']['group'])
     return literal('''<span>%s</span>'''
         % (link)
         )
 
-def get_snippet_organization(activity, detail):
+def get_snippet_organization(activity, detail, context):
     return h.organization_link(activity['data']['group'])
 
-def get_snippet_extra(activity, detail):
+def get_snippet_extra(activity, detail, context):
     return '"%s"' % detail['data']['package_extra']['key']
 
-def get_snippet_resource(activity, detail):
-    return h.resource_link(detail['data']['resource'],
+def get_snippet_resource(activity, detail, context):
+    if not context['session'].query(context['model'].Resource).get(detail['data']['resource']['id']).state=='deleted':
+        return h.resource_link(detail['data']['resource'],
                            activity['data']['package']['id'])
+    else:
+        return detail['data']['resource']['name']
 
+def get_snippet_deleted(activity,detail, context):
+    return detail['data']['resource']['name']
 # activity_stream_string_*() functions return translatable string
 # representations of activity types, the strings contain placeholders like
 # {user}, {dataset} etc. to be replaced with snippets from the get_snippet_*()
@@ -87,10 +93,10 @@ def activity_stream_string_deleted_package(context, activity):
     return _("{actor} deleted the dataset {dataset}")
 
 def activity_stream_string_deleted_package_extra(context, activity):
-    return _("{actor} deleted the extra {extra} from the dataset {dataset}")
+    return _("{actor} deleted the extra {deleted} from the dataset {dataset}")
 
 def activity_stream_string_deleted_resource(context, activity):
-    return _("{actor} deleted the resource {resource} from the dataset "
+    return _("{actor} deleted the resource {deleted} from the dataset "
              "{dataset}")
 
 def activity_stream_string_new_group(context, activity):
@@ -133,6 +139,7 @@ activity_snippet_functions = {
     'organization': get_snippet_organization,
     'extra': get_snippet_extra,
     'resource': get_snippet_resource,
+    'deleted': get_snippet_deleted,
 }
 
 # A dictionary mapping activity types to functions that return translatable
@@ -234,7 +241,6 @@ def activity_list_to_html(context, activity_stream, extra_vars):
             activity_icon = activity_stream_string_icons[activity_type]
         else:
             activity_icon = activity_stream_string_icons['undefined']
-
         activity_msg = activity_stream_string_functions[activity_type](context,
                 activity)
 
@@ -242,7 +248,7 @@ def activity_list_to_html(context, activity_stream, extra_vars):
         matches = re.findall('\{([^}]*)\}', activity_msg)
         data = {}
         for match in matches:
-            snippet = activity_snippet_functions[match](activity, detail)
+            snippet = activity_snippet_functions[match](activity, detail, context)
             data[str(match)] = snippet
 
         activity_list.append({'msg': activity_msg,

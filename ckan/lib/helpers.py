@@ -1812,6 +1812,7 @@ def add_url_param(alternative_url=None, controller=None, action=None,
 
     params_nopage = [(k, v) for k, v in request.params.items() if k != 'page']
     params = set(params_nopage)
+
     if new_params:
         params |= set(new_params.items())
     if alternative_url:

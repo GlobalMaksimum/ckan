@@ -17,19 +17,6 @@
 
 {% block primary_content_inner %}
   {% block form %}{% endblock %}
-{% endblock %}
-
-{% block main_content %}
-  {% if h.resource_view_full_page(resource_view) %}
-    {{ self.flash() }}
-    {{ self.toolbar() }}
-    <div class="wrapper no-nav">
-      {{ self.primary_content() }}
-    </div>
-  {% else %}
-    {{ super() }}
-  {% endif %}
-
   {% if to_preview and h.resource_view_display_preview(resource_view) %}
     <div class="row wrapper no-nav view-preview-container">
       <section class="module module-narrow module-shallow">
@@ -41,6 +28,18 @@
         </div>
       </section>
     </div>
+  {% endif %}
+{% endblock %}
+
+{% block main_content %}
+  {% if h.resource_view_full_page(resource_view) %}
+    {{ self.flash() }}
+    {{ self.toolbar() }}
+    <div class="wrapper no-nav">
+      {{ self.primary_content() }}
+    </div>
+  {% else %}
+    {{ super() }}
   {% endif %}
 {% endblock %}
 

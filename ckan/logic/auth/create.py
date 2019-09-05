@@ -36,7 +36,12 @@ def package_create(context, data_dict=None):
     if org_id and not authz.has_user_permission_for_group_or_org(
             org_id, user, 'create_dataset'):
         return {'success': False, 'msg': _('User %s not authorized to add dataset to this organization') % user}
+
+    if data_dict.get('private') and data_dict.get('private')=='False' and not (authz.has_user_permission_for_group_or_org(org_id, user, 'create_public_dataset') or authz.has_user_permission_for_group_or_org(org_id, user, 'admin')):
+       return {'success': False, 'msg': _('User %s not authorized to add a public dataset to this organization') % user}
+    
     return {'success': True}
+
 
 
 def file_upload(context, data_dict=None):

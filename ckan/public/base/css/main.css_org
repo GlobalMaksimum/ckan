@@ -5640,9 +5640,9 @@ button.list-group-item-danger.active:focus {
 .panel-group .panel + .panel {
   margin-top: 5px;
 }
-/* .panel-group .panel-heading {
+.panel-group .panel-heading {
   border-bottom: 0;
-} */
+}
 .panel-group .panel-heading + .panel-collapse > .panel-body,
 .panel-group .panel-heading + .panel-collapse > .list-group {
   border-top: 1px solid #dddddd;
@@ -7563,7 +7563,7 @@ select[multiple].control-large input {
   margin-left: 0;
 }
 .form-actions {
-  overflow: visible;
+  overflow: auto;
 }
 @media (min-width: 768px) {
   .form-actions {
@@ -8345,11 +8345,11 @@ fieldset[disabled] .control-custom.disabled .checkbox.btn.focus {
 }
 .label[data-format=csv],
 .label[data-format*=csv] {
-  background-color: #98b599;
+  background-color: #dfb100;
 }
 .label[data-format=xls],
 .label[data-format*=xls] {
-  background-color: #009d31;
+  background-color: #2db55d;
 }
 .label[data-format=zip],
 .label[data-format*=zip] {
@@ -10085,7 +10085,7 @@ h4 small {
 .activity .item:after {
   clear: both;
 }
-.activity .item:before {
+.activity .item .icon {
   display: block;
   position: absolute;
   top: 0;
@@ -10101,27 +10101,6 @@ h4 small {
   border-radius: 100px;
   -webkit-box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-.activity .item .icon{
-  display: block;
-  position: absolute;
-  top: 5px;
-  left: 6.5px;
-  z-index: 100;
-  color: #fff;
-  width: 18px;
-  height: 18px;
-  line-height: 18px;
-  text-align: center;
-  display: block;
-  font-size: 14px;
-}
-.activity .item .icon:before{
-  width: 18px;
-  height: 18px;
-  line-height: 18px;
-  text-align: center;
-  display: block;
 }
 .activity .item .gravatar {
   border-radius: 100px;
@@ -10189,85 +10168,85 @@ h4 small {
   margin-left: 0;
   margin-bottom: 10px;
 }
-.activity .item:before {
+.activity .item .icon {
   background-color: #999999;
 }
-.activity .item.failure:before {
+.activity .item.failure .icon {
   background-color: #b95252;
 }
-.activity .item.success:before {
+.activity .item.success .icon {
   background-color: #69a67a;
 }
-.activity .item.added-tag:before {
+.activity .item.added-tag .icon {
   background-color: #6995a6;
 }
-.activity .item.changed-group:before {
+.activity .item.changed-group .icon {
   background-color: #767dce;
 }
-.activity .item.changed-package:before {
+.activity .item.changed-package .icon {
   background-color: #8c76ce;
 }
-.activity .item.changed-package_extra:before {
+.activity .item.changed-package_extra .icon {
   background-color: #769ace;
 }
-.activity .item.changed-resource:before {
+.activity .item.changed-resource .icon {
   background-color: #aa76ce;
 }
-.activity .item.changed-user:before {
+.activity .item.changed-user .icon {
   background-color: #76b8ce;
 }
-.activity .item.changed-organization:before {
+.activity .item.changed-organization .icon {
   background-color: #699fa6;
 }
-.activity .item.deleted-group:before {
+.activity .item.deleted-group .icon {
   background-color: #b95252;
 }
-.activity .item.deleted-package:before {
+.activity .item.deleted-package .icon {
   background-color: #b97452;
 }
-.activity .item.deleted-package_extra:before {
+.activity .item.deleted-package_extra .icon {
   background-color: #b95274;
 }
-.activity .item.deleted-resource:before {
+.activity .item.deleted-resource .icon {
   background-color: #b99752;
 }
-.activity .item.deleted-organization:before {
+.activity .item.deleted-organization .icon {
   background-color: #b95297;
 }
-.activity .item.new-group:before {
+.activity .item.new-group .icon {
   background-color: #69a67a;
 }
-.activity .item.new-package:before {
+.activity .item.new-package .icon {
   background-color: #69a68e;
 }
-.activity .item.new-package_extra:before {
+.activity .item.new-package_extra .icon {
   background-color: #6ca669;
 }
-.activity .item.new-resource:before {
+.activity .item.new-resource .icon {
   background-color: #81a669;
 }
-.activity .item.new-user:before {
+.activity .item.new-user .icon {
   background-color: #69a6a3;
 }
-.activity .item.new-organization:before {
+.activity .item.new-organization .icon {
   background-color: #81a669;
 }
-.activity .item.removed-tag:before {
+.activity .item.removed-tag .icon {
   background-color: #b95297;
 }
-.activity .item.deleted-related-item:before {
+.activity .item.deleted-related-item .icon {
   background-color: #b9b952;
 }
-.activity .item.follow-dataset:before {
+.activity .item.follow-dataset .icon {
   background-color: #767dce;
 }
-.activity .item.follow-user:before {
+.activity .item.follow-user .icon {
   background-color: #8c76ce;
 }
-.activity .item.new-related-item:before {
+.activity .item.new-related-item .icon {
   background-color: #95a669;
 }
-.activity .item.follow-group:before {
+.activity .item.follow-group .icon {
   background-color: #8ba669;
 }
 .dropdown:hover .dropdown-menu {

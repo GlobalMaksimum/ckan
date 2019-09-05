@@ -2136,10 +2136,11 @@ the specific language governing permissions and limitations under the Apache Lic
 
         createContainer: function () {
             var container = $(document.createElement("div")).attr({
-                "class": "select2-container"
+                "class": this.opts.containerless?"":"select2-container"
             }).html([
                 "<a href='javascript:void(0)' class='select2-choice' tabindex='-1'>",
-                "   <span class='select2-chosen'>&#160;</span><abbr class='select2-search-choice-close'></abbr>",
+                "   <span class='select2-chosen'>&#160;</span>",
+                this.opts.containerless?"":"<abbr class='select2-search-choice-close'></abbr>",
                 "   <span class='select2-arrow' role='presentation'><b role='presentation'></b></span>",
                 "</a>",
                 "<label for='' class='select2-offscreen'></label>",

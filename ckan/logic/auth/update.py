@@ -15,6 +15,9 @@ def package_update(context, data_dict):
     package = logic_auth.get_package_object(context, data_dict)
 
     if package.owner_org:
+        if package.private==False and not (authz.has_user_permission_for_group_or_org(package.owner_org, user, 'create_public_dataset') or authz.has_user_permission_for_group_or_org(package.owner_org, user, 'admin')):
+            return  {'success': False, 'msg': _('User %s not authorized to edit public packages or set their visibility to public') % (str(user))}
+
         # if there is an owner org then we must have update_dataset
         # permission for that organization
         check1 = authz.has_user_permission_for_group_or_org(

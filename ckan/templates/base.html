@@ -51,6 +51,8 @@
     #}
     {% block links -%}
       <link rel="shortcut icon" href="{{ g.favicon }}" />
+      <link rel="preconnect" href="https://maxcdn.bootstrapcdn.com/">
+      <link rel="preconnect" href="https://cdnjs.cloudflare.com/">
     {% endblock -%}
 
     {#
@@ -112,5 +114,6 @@
       {# defined in the config.ini under "ckan.template_footer_end" #}
       {{ g.template_footer_end | safe }}
     {%- endblock %}
+    <div id="inner-shadow"></div>
   </body>
 </html>

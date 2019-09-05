@@ -13,7 +13,16 @@ class UtilController(base.BaseController):
 
     def redirect(self):
         ''' redirect to the url parameter. '''
+        
         url = base.request.params.get('url')
+        ''' manual language redirect '''
+        lang = base.request.params.get('lang')
+        if lang:
+            if url[0:3] in ('/tr','/en'):
+                url='/'+lang+url[3]
+            else:
+                url='/'+lang+url
+
         if not url:
             base.abort(400, _('Missing Value') + ': url')
 
