@@ -55,7 +55,7 @@ this.ckan.module('image-upload', function($) {
         .appendTo(this.el);
 
       // Button to set the field to be a URL
-      this.button_url = $('<a href="javascript:;" class="btn btn-default text-default-color my-0">' +
+      this.button_url = $('<a href="javascript:;" class="btn btn-default">' +
                           '<i class="fa fa-globe"></i>' +
                           this._('Link') + '</a>')
         .prop('title', this._('Link to a URL on the internet (you can also link to an API)'))
@@ -63,14 +63,14 @@ this.ckan.module('image-upload', function($) {
         .insertAfter(this.input);
 
       // Button to attach local file to the form
-      this.button_upload = $('<a href="javascript:;" class="btn btn-default text-default-color my-0">' +
-                             '<i class="fa fa-upload"></i>' +
+      this.button_upload = $('<a href="javascript:;" class="btn btn-default">' +
+                             '<i class="fa fa-cloud-upload"></i>' +
                              this._('Upload') + '</a>')
         .insertAfter(this.input);
 
       // Button for resetting the form when there is a URL set
       var removeText = this._('Remove');
-      $('<a href="javascript:;" class="btn btn-danger btn-remove-url my-0">'
+      $('<a href="javascript:;" class="btn btn-danger btn-remove-url">'
         + removeText + '</a>')
         .prop('title', removeText)
         .on('click', this._onRemove)
@@ -78,7 +78,7 @@ this.ckan.module('image-upload', function($) {
 
       // Update the main label (this is displayed when no data/image has been uploaded/linked)
       $('label[for="field-image-upload"]').text(options.upload_label || this._('Image'));
-      $('label[for="field-image-upload"]').addClass('col-md-3 control-label')
+
       // Setup the file input
       this.input
         .on('mouseover', this._onInputMouseOver)

@@ -9,7 +9,7 @@ this.ckan.module('resource-reorder', function($) {
     template: {
       title: '<h1></h1>',
       button: [
-        '<a href="javascript:;" class="btn btn-default text-default-color btn-60px">',
+        '<a href="javascript:;" class="btn btn-default">',
         '<i class="fa fa-bars"></i>',
         '<span></span>',
         '</a>'
@@ -37,7 +37,7 @@ this.ckan.module('resource-reorder', function($) {
 
     initialize: function() {
       jQuery.proxyAll(this, /_on/);
-      
+
       var labelText = this._(this.options.labelText);
 
       this.html_title = $(this.template.title)

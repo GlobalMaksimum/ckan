@@ -10,14 +10,12 @@ Example:
 #}
 <div class="module context-info">
   <div class="module-content">
-    <div class="bordered">
-      <h1 class="heading">{{ h.resource_display_name(res) or res.id }}</h1>
-      <div class="nums">
-        <dl>
-          <dt>{{ _('Format') }}</dt>
-          <dd class="format"><img src="/img/file_icons/{{ h.get_translated(res, 'format').lower() }}.png" onerror="this.onerror=null; this.src='/img/file_icons/pdf.png';" height="64" width="64" class="pull-left"> {{ h.get_translated(res, 'format') }}</dd>
-        </dl>
-      </div>
+    <h1 class="heading">{{ h.resource_display_name(res) or res.id }}</h1>
+    <div class="nums">
+      <dl>
+        <dt>{{ _('Format') }}</dt>
+        <dd>{{ h.get_translated(res, 'format') }}</dd>
+      </dl>
     </div>
   </div>
 </div>

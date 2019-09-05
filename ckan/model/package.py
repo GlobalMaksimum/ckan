@@ -1,11 +1,9 @@
 # encoding: utf-8
 
 import datetime
-from calendar import timegm
 import logging
-logger = logging.getLogger(__name__)
 
-from sqlalchemy.sql import select, and_, union, or_
+from sqlalchemy.sql import and_, or_
 from sqlalchemy import orm
 from sqlalchemy import types, Column, Table
 from ckan.common import config
@@ -22,9 +20,11 @@ import extension
 import ckan.lib.maintain as maintain
 import ckan.lib.dictization as dictization
 
+logger = logging.getLogger(__name__)
+
 __all__ = ['Package', 'package_table', 'package_revision_table',
            'PACKAGE_NAME_MAX_LENGTH', 'PACKAGE_NAME_MIN_LENGTH',
-           'PACKAGE_VERSION_MAX_LENGTH', 'PackageTag', 'PackageTagRevision',
+           'PACKAGE_VERSION_MAX_LENGTH', 'PackageTagRevision',
            'PackageRevision']
 
 
@@ -51,7 +51,7 @@ package_table = Table('package', meta.metadata,
         Column('creator_user_id', types.UnicodeText),
         Column('metadata_created', types.DateTime, default=datetime.datetime.utcnow),
         Column('metadata_modified', types.DateTime, default=datetime.datetime.utcnow),
-        Column('private', types.Boolean, default=True),
+        Column('private', types.Boolean, default=False),
 )
 
 
@@ -508,6 +508,7 @@ class Package(vdm.sqlalchemy.RevisionedObjectMixin,
     def activity_stream_item(self, activity_type, revision, user_id):
         import ckan.model
         import ckan.logic
+
         assert activity_type in ("new", "changed"), (
             str(activity_type))
 

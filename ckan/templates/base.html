@@ -40,7 +40,7 @@
     <title>
       {%- block title -%}
         {%- block subtitle %}{% endblock -%}
-        {%- if self.subtitle()|trim %} {{ g.template_title_deliminater }} {% endif -%}
+        {%- if self.subtitle()|trim %} {{ g.template_title_delimiter }} {% endif -%}
         {{ g.site_title }}
       {%- endblock -%}
     </title>
@@ -51,8 +51,6 @@
     #}
     {% block links -%}
       <link rel="shortcut icon" href="{{ g.favicon }}" />
-      <link rel="preconnect" href="https://maxcdn.bootstrapcdn.com/">
-      <link rel="preconnect" href="https://cdnjs.cloudflare.com/">
     {% endblock -%}
 
     {#
@@ -68,7 +66,7 @@
       {% endblock %}
     #}
     {%- block styles %}
-      {% resource g.main_css[6:] %}
+      {% if h.is_rtl_language() %}{% resource h.get_rtl_css()[6:] %}{% else %}{% resource g.main_css[6:] %}{% endif %}
     {% endblock %}
 
     {% block head_extras %}
@@ -114,6 +112,5 @@
       {# defined in the config.ini under "ckan.template_footer_end" #}
       {{ g.template_footer_end | safe }}
     {%- endblock %}
-    <div id="inner-shadow"></div>
   </body>
 </html>

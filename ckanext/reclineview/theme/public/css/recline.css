@@ -47,7 +47,7 @@ body {
 */
 .loading-spinner {
   float: right;
-  background-image: url('/img/ajaxload-circle.gif');
+  background-image: url('../img/ajaxload-circle.gif');
   width: 32px;
   height: 32px;
 }
@@ -194,7 +194,7 @@ body {
 
 .recline-pager .pagination .page-range {
   height: 34px;
-  padding: 4px 8px;
+  padding: 5px 8px;
   margin-left: -5px;
   border: 1px solid #ddd;
 }
